@@ -77,7 +77,8 @@ class NovatelPublisher(object):
     def __init__(self):
         # Parameters
         self.publish_tf = rospy.get_param('~publish_tf', False)
-        self.odom_frame = rospy.get_param('~odom_frame', 'odom_combined')
+        self.odom_frame = rospy.get_param('~map_frame', 'map')
+        self.odom_frame = rospy.get_param('~odom_frame', 'odom')
         self.base_frame = rospy.get_param('~base_frame', 'base_link')
 
         # When True, UTM odom x, y pose will be published with respect to the
@@ -96,7 +97,7 @@ class NovatelPublisher(object):
             self.tf_broadcast = tf.TransformBroadcaster()
 
         self.init = False       # If we've been initialized
-        self.origin = Point()   # Where we've started
+        self.origin = Pose()   # Where we've started
         self.orientation = [0] * 4  # Empty quaternion until we hear otherwise
         self.orientation_covariance = IMU_ORIENT_COVAR
 
@@ -174,13 +175,15 @@ class NovatelPublisher(object):
             utm_pos = geodesy.utm.fromLatLong(inspvax.latitude, inspvax.longitude)
         except ValueError:
             # Probably coordinates out of range for UTM conversion.
+            rospy.logwarn('Could not convert LLA.')
             return
 
         if not self.init and self.zero_start:
-            self.origin.x = utm_pos.easting
-            self.origin.y = utm_pos.northing
-            self.origin.z = inspvax.altitude
-            self.pub_origin.publish(position=self.origin)
+            # orientation is zero by default
+            self.origin.position.x = utm_pos.easting
+            self.origin.position.y = utm_pos.northing
+            self.origin.position.z = inspvax.altitude
+            self.pub_origin.publish(self.origin)
 
         odom = Odometry()
         odom.header.stamp = rospy.Time.now()
@@ -194,9 +197,7 @@ class NovatelPublisher(object):
         # Save this on an instance variable, so that it can be published
         # with the IMU message as well.
         self.orientation = tf.transformations.quaternion_from_euler(
-                radians(inspvax.roll),
-                radians(inspvax.pitch),
-                -radians(inspvax.azimuth), 'syxz')
+                radians(inspvax.roll), radians(inspvax.pitch), -radians(inspvax.azimuth), 'syxz')
         odom.pose.pose.orientation = Quaternion(*self.orientation)
         odom.pose.covariance[21] = self.orientation_covariance[0] = pow(inspvax.pitch_std, 2)
         odom.pose.covariance[28] = self.orientation_covariance[4] = pow(inspvax.roll_std, 2)
@@ -216,10 +217,11 @@ class NovatelPublisher(object):
         # Odometry transform (if required)
         if self.publish_tf:
             self.tf_broadcast.sendTransform(
-                (odom.pose.pose.position.x, odom.pose.pose.position.y,
-                 odom.pose.pose.position.z),
-                self.orientation,
-                odom.header.stamp, odom.child_frame_id, odom.header.frame_id)
+                (self.origin.position.x, self.origin.position.y, self.origin.position.z),
+                self.origin.orientation, odom.header.stamp, self.odom_frame, self.map_frame)
+            self.tf_broadcast.sendTransform(
+                (odom.pose.pose.position.x, odom.pose.pose.position.y, odom.pose.pose.position.z),
+                self.orientation, odom.header.stamp, self.base_frame, self.odom_frame)
 
         # Mark that we've received our first fix, and set origin if necessary.
         self.init = True
