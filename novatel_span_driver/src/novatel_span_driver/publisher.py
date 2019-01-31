@@ -160,9 +160,9 @@ class NovatelPublisher(object):
 
         # Altitude in metres.
         navsat.altitude = bestpos.altitude + bestpos.undulation
-        navsat.position_covariance[0] = pow(2, bestpos.latitude_std)
-        navsat.position_covariance[4] = pow(2, bestpos.longitude_std)
-        navsat.position_covariance[8] = pow(2, bestpos.altitude_std)
+        navsat.position_covariance[0] = pow(bestpos.latitude_std, 2)
+        navsat.position_covariance[4] = pow(bestpos.longitude_std, 2)
+        navsat.position_covariance[8] = pow(bestpos.altitude_std, 2)
         navsat.position_covariance_type = NavSatFix.COVARIANCE_TYPE_DIAGONAL_KNOWN
 
         # Ship ito
@@ -198,17 +198,17 @@ class NovatelPublisher(object):
                 radians(inspvax.pitch),
                 -radians(inspvax.azimuth), 'syxz')
         odom.pose.pose.orientation = Quaternion(*self.orientation)
-        odom.pose.covariance[21] = self.orientation_covariance[0] = pow(2, inspvax.pitch_std)
-        odom.pose.covariance[28] = self.orientation_covariance[4] = pow(2, inspvax.roll_std)
-        odom.pose.covariance[35] = self.orientation_covariance[8] = pow(2, inspvax.azimuth_std)
+        odom.pose.covariance[21] = self.orientation_covariance[0] = pow(inspvax.pitch_std, 2)
+        odom.pose.covariance[28] = self.orientation_covariance[4] = pow(inspvax.roll_std, 2)
+        odom.pose.covariance[35] = self.orientation_covariance[8] = pow(inspvax.azimuth_std, 2)
 
         # Twist is relative to vehicle frame
         odom.twist.twist.linear.x = inspvax.east_velocity
         odom.twist.twist.linear.y = inspvax.north_velocity
         odom.twist.twist.linear.z = inspvax.up_velocity
-        TWIST_COVAR[0] = pow(2, inspvax.east_velocity_std)
-        TWIST_COVAR[7] = pow(2, inspvax.north_velocity_std)
-        TWIST_COVAR[14] = pow(2, inspvax.up_velocity_std)
+        TWIST_COVAR[0] = pow(inspvax.east_velocity_std, 2)
+        TWIST_COVAR[7] = pow(inspvax.north_velocity_std, 2)
+        TWIST_COVAR[14] = pow(inspvax.up_velocity_std, 2)
         odom.twist.covariance = TWIST_COVAR
 
         self.pub_odom.publish(odom)
