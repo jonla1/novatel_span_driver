@@ -157,6 +157,8 @@ def configure_receiver(port):
         logger = receiver_config.get('log_request', [])
         rospy.loginfo("Enabling %i log outputs from SPAN system." % len(logger))
         for log in logger:
+            # Edit Jonas
+            rospy.loginfo('log {} ontime {}'.format(log, str(logger[log])))
             port.send('log ' + log + ' ontime ' + str(logger[log]) + '\r\n')
 
         commands = receiver_config.get('command', [])
